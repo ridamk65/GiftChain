@@ -2,61 +2,133 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 describe("GiftChain", function () {
-  let giftChain, mockToken, owner, addr1, addr2;
+  let owner, recipient, relayer, token, giftChain;
+  let amount, expiry, message, giftID, creatorHash;
 
   beforeEach(async function () {
-    [owner, addr1, addr2] = await ethers.getSigners();
+    [owner, recipient, relayer] = await ethers.getSigners();
 
     // Deploy MockERC20
     const MockERC20 = await ethers.getContractFactory("MockERC20");
-    mockToken = await MockERC20.deploy("Test Token", "TEST", 18);
-    await mockToken.waitForDeployment();
+    token = await MockERC20.deploy("MockToken", "MTK", 18);
+    await token.waitForDeployment();
 
-    // Deploy GiftChain
+    // Mint tokens to relayer (since relayer calls transferFrom)
+    await token.mint(relayer.address, ethers.parseEther("1000"));
+
+    // Deploy GiftChain with relayer address
     const GiftChain = await ethers.getContractFactory("GiftChain");
-    giftChain = await GiftChain.deploy(owner.address);
+    giftChain = await GiftChain.deploy(relayer.address);
     await giftChain.waitForDeployment();
 
-    // Mint tokens to owner
-    await mockToken.mint(owner.address, ethers.parseEther("1000"));
+    // Prepare test data
+    amount = ethers.parseEther("10");
+    expiry = (await ethers.provider.getBlock("latest")).timestamp + 3600;
+    message = "Happy Birthday!";
+    giftID = ethers.keccak256(ethers.toUtf8Bytes("gift1"));
+    creatorHash = ethers.keccak256(ethers.solidityPacked(["address"], [owner.address]));
+
+    // Relayer approves the contract to spend tokens
+    await token.connect(relayer).approve(await giftChain.getAddress(), amount * 10n);
   });
 
-  describe("Gift Creation", function () {
-    it("Should create a gift successfully", async function () {
-      const amount = ethers.parseEther("10");
-      const expiration = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
-      const message = "Happy Birthday!";
-
-      // Approve tokens
-      await mockToken.approve(await giftChain.getAddress(), amount);
-
-      // Create gift
-      await expect(giftChain.createGift(await mockToken.getAddress(), amount, expiration, message))
-        .to.emit(giftChain, "GiftCreated");
-    });
+  it("Should create a gift successfully", async function () {
+    await expect(
+      giftChain.connect(relayer).createGift(
+        await token.getAddress(),
+        amount,
+        expiry,
+        message,
+        giftID,
+        creatorHash
+      )
+    ).to.emit(giftChain, "GiftCreated");
+    
+    const gift = await giftChain.gifts(giftID);
+    expect(gift.amount).to.equal(amount);
+    expect(gift.message).to.equal(message);
   });
 
-  describe("Gift Claiming", function () {
-    it("Should allow claiming a valid gift", async function () {
-      const amount = ethers.parseEther("10");
-      const expiration = Math.floor(Date.now() / 1000) + 3600;
-      const message = "Test Gift";
+  it("Should allow recipient to claim a gift", async function () {
+    await giftChain.connect(relayer).createGift(
+      await token.getAddress(),
+      amount,
+      expiry,
+      message,
+      giftID,
+      creatorHash
+    );
+    
+    await expect(
+      giftChain.connect(recipient).claimGift(giftID)
+    ).to.emit(giftChain, "GiftClaimed");
 
-      // Approve and create gift
-      await mockToken.approve(await giftChain.getAddress(), amount);
-      const tx = await giftChain.createGift(await mockToken.getAddress(), amount, expiration, message);
-      const receipt = await tx.wait();
-      
-      // Get giftId from event
-      const event = receipt.logs.find(log => log.fragment && log.fragment.name === "GiftCreated");
-      const giftId = event.args[0];
+    const recipientBalance = await token.balanceOf(recipient.address);
+    expect(recipientBalance).to.equal(amount);
 
-      // Claim gift
-      await expect(giftChain.connect(addr1).claimGift(giftId))
-        .to.emit(giftChain, "GiftClaimed");
+    const gift = await giftChain.gifts(giftID);
+    expect(gift.claimed).to.equal(true);
+  });
 
-      // Check recipient balance
-      expect(await mockToken.balanceOf(addr1.address)).to.equal(amount);
-    });
+  // ------------------
+  // ❌ Negative Tests
+  // ------------------
+
+  it("Should fail if non-relayer tries to create a gift", async function () {
+    await expect(
+      giftChain.connect(owner).createGift(
+        await token.getAddress(),
+        amount,
+        expiry,
+        message,
+        giftID,
+        creatorHash
+      )
+    ).to.be.revertedWithCustomError(giftChain, "ONLY_RELAYER_HAS_ACCESS");
+  });
+
+  it("Should not allow claiming twice", async function () {
+    await giftChain.connect(relayer).createGift(
+      await token.getAddress(),
+      amount,
+      expiry,
+      message,
+      giftID,
+      creatorHash
+    );
+    await giftChain.connect(recipient).claimGift(giftID);
+
+    await expect(
+      giftChain.connect(recipient).claimGift(giftID)
+    ).to.be.revertedWithCustomError(giftChain, "GIFT_CLAIMED");
+  });
+
+  it("Should not allow claiming after expiry", async function () {
+    const expiredGiftID = ethers.keccak256(ethers.toUtf8Bytes("expiredGift"));
+    
+    await giftChain.connect(relayer).createGift(
+      await token.getAddress(),
+      amount,
+      expiry,
+      message,
+      expiredGiftID,
+      creatorHash
+    );
+
+    // Fast forward time past expiry
+    await ethers.provider.send("evm_increaseTime", [3700]); // 1 hour + 100 seconds
+    await ethers.provider.send("evm_mine");
+
+    await expect(
+      giftChain.connect(recipient).claimGift(expiredGiftID)
+    ).to.be.revertedWithCustomError(giftChain, "GIFT_EXPIRED");
+  });
+
+  it("Should not allow claiming non-existent gift", async function () {
+    const fakeGiftID = ethers.keccak256(ethers.toUtf8Bytes("fakeGift"));
+
+    await expect(
+      giftChain.connect(recipient).claimGift(fakeGiftID)
+    ).to.be.revertedWithCustomError(giftChain, "INVALID_GIFTID");
   });
 });
