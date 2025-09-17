@@ -1,0 +1,171 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "GiftErrors",
+  "sourceName": "contracts/Library/GiftErrors.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "ARRAY_LENGTH_MISMATCH",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "BULK_CREATION_FAILED",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "BULK_CREATION_MUST_BE_AT_LEAST_5",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CAMPAIGN_ALREADY_EXIST",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CAMPAIGN_EXPIRED",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CAMPAIGN_NOT_ENDED",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CAMPAIGN_NOT_FOUND",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CARD_ALREADY_EXIST",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CREATOR_CANNOT_CLAIM_GIFT",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CREATOR_MISMATCH",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "EXCEEDS_CAMPAIGN_GOAL",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "EXPECT_3_TO_50_MESSAGE_CHARACTER",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "EXPIRY_CAN_ONLY_BE_IN_FUTURE",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "FUNDS_ALREADY_WITHDRAWN",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "GIFT_CLAIMED",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "GIFT_EXPIRED",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "GIFT_NOT_CLAIMABLE",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "GIFT_NOT_EXPIRED_YET",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "GiftAlreadyReclaimed",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "GiftAlreadyRedeemed",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "GiftNotFound",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "INVALID_ADDRESS",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "INVALID_AMOUNT",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "INVALID_DESCRIPTION",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "INVALID_GIFTID",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "INVALID_TITLE",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NOT_AUTHORIZE_TO_RECLAIM_GIFT",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NOT_AUTHORIZE_TO_WITHDRAW",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NO_FUNDS_TO_WITHDRAW",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ONLY_CONTRACT_HAS_ACCESS",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ONLY_RELAYER_HAS_ACCESS",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TRANSFER_FAILED",
+      "type": "error"
+    }
+  ],
+  "bytecode": "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220ce8310eb174629ae50e3a6cfc359993e81d3954ffda0afffa307d9edf51d605a64736f6c634300081c0033",
+  "deployedBytecode": "0x73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220ce8310eb174629ae50e3a6cfc359993e81d3954ffda0afffa307d9edf51d605a64736f6c634300081c0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
