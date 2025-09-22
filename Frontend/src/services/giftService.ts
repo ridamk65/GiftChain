@@ -11,28 +11,46 @@ export class GiftService {
   }
 
   async createGift(tokenAddress: string, amount: string, expiryDays: number, message: string) {
-    const giftID = ethers.keccak256(ethers.toUtf8Bytes(`${Date.now()}-${Math.random()}`));
-    const creatorHash = ethers.keccak256(ethers.solidityPacked(['address'], [await this.signer.getAddress()]));
-    const expiry = Math.floor(Date.now() / 1000) + (expiryDays * 24 * 60 * 60);
-    const amountWei = ethers.parseEther(amount);
+    try {
+      const giftID = ethers.keccak256(ethers.toUtf8Bytes(`${Date.now()}-${Math.random()}`));
+      const creatorHash = ethers.keccak256(ethers.solidityPacked(['address'], [await this.signer.getAddress()]));
+      const expiry = Math.floor(Date.now() / 1000) + (expiryDays * 24 * 60 * 60);
+      const amountWei = ethers.parseEther(amount);
 
-    // Approve token transfer first
-    const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.signer);
-    const approveTx = await tokenContract.approve(CONTRACT_ADDRESSES.GIFT_CHAIN, amountWei);
-    await approveTx.wait();
+      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.signer);
+      
+      // Check balance first
+      const balance = await tokenContract.balanceOf(await this.signer.getAddress());
+      console.log('Current token balance:', ethers.formatEther(balance));
+      
+      if (balance < amountWei) {
+        throw new Error(`Insufficient token balance. Have: ${ethers.formatEther(balance)}, Need: ${amount}`);
+      }
 
-    // Create gift
-    const tx = await this.contract.createGift(
-      tokenAddress,
-      amountWei,
-      expiry,
-      message,
-      giftID,
-      creatorHash
-    );
-    
-    const receipt = await tx.wait();
-    return { giftID, receipt };
+      // Approve the contract to spend tokens
+      console.log('Approving token spending...');
+      const approveTx = await tokenContract.approve(CONTRACT_ADDRESSES.GIFT_CHAIN, amountWei);
+      await approveTx.wait();
+      console.log('Approval successful');
+
+      // Create gift
+      console.log('Creating gift...');
+      const tx = await this.contract.createGift(
+        tokenAddress,
+        amountWei,
+        expiry,
+        message,
+        giftID,
+        creatorHash
+      );
+      
+      const receipt = await tx.wait();
+      console.log('Gift created successfully!');
+      return { giftID, receipt };
+    } catch (error) {
+      console.error('Detailed error:', error);
+      throw error;
+    }
   }
 
   async claimGift(giftID: string) {

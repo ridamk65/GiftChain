@@ -1,8 +1,23 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { ethers } from 'ethers';
 import { NETWORK_CONFIG } from '../config/contracts';
 
-export const useWeb3 = () => {
+interface Web3ContextType {
+  provider: ethers.BrowserProvider | null;
+  signer: ethers.JsonRpcSigner | null;
+  account: string;
+  isConnected: boolean;
+  connectWallet: () => Promise<void>;
+  disconnectWallet: () => void;
+}
+
+const Web3Context = createContext<Web3ContextType | undefined>(undefined);
+
+interface Web3ProviderProps {
+  children: ReactNode;
+}
+
+export const Web3Provider = ({ children }: Web3ProviderProps) => {
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
   const [account, setAccount] = useState<string>('');
@@ -21,7 +36,6 @@ export const useWeb3 = () => {
         setAccount(address);
         setIsConnected(true);
 
-        // Switch to local network if needed
         try {
           await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
@@ -59,6 +73,7 @@ export const useWeb3 = () => {
           disconnectWallet();
         } else {
           setAccount(accounts[0]);
+          setIsConnected(true);
         }
       });
 
@@ -68,7 +83,7 @@ export const useWeb3 = () => {
     }
   }, []);
 
-  return {
+  const contextValue: Web3ContextType = {
     provider,
     signer,
     account,
@@ -76,4 +91,18 @@ export const useWeb3 = () => {
     connectWallet,
     disconnectWallet
   };
+
+  return React.createElement(
+    Web3Context.Provider,
+    { value: contextValue },
+    children
+  );
+};
+
+export const useWeb3 = () => {
+  const context = useContext(Web3Context);
+  if (context === undefined) {
+    throw new Error('useWeb3 must be used within a Web3Provider');
+  }
+  return context;
 };
