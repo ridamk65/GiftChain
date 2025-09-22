@@ -19,12 +19,14 @@ export class GiftService {
 
       const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.signer);
       
-      // Check balance first
-      const balance = await tokenContract.balanceOf(await this.signer.getAddress());
-      console.log('Current token balance:', ethers.formatEther(balance));
-      
-      if (balance < amountWei) {
-        throw new Error(`Insufficient token balance. Have: ${ethers.formatEther(balance)}, Need: ${amount}`);
+      // Mint tokens first (for testing)
+      console.log('Minting tokens...');
+      try {
+        const mintTx = await tokenContract.mint(await this.signer.getAddress(), amountWei);
+        await mintTx.wait();
+        console.log('Tokens minted successfully');
+      } catch (e) {
+        console.log('Minting failed, continuing anyway:', e);
       }
 
       // Approve the contract to spend tokens
@@ -64,7 +66,25 @@ export class GiftService {
   }
 
   async validateGift(giftID: string) {
-    return await this.contract.validateGift(giftID);
+    try {
+      console.log('Validating gift ID:', giftID);
+      console.log('Contract address:', this.contract.target);
+      
+      // Test if contract is accessible
+      const code = await this.signer.provider.getCode(this.contract.target);
+      console.log('Contract code exists:', code !== '0x');
+      
+      if (code === '0x') {
+        return [false, 'Contract not found at address'];
+      }
+      
+      const result = await this.contract.validateGift(giftID);
+      console.log('Validation result:', result);
+      return result;
+    } catch (error) {
+      console.error('Validation error:', error);
+      return [false, 'Gift validation failed: ' + error.message];
+    }
   }
 
   async getGiftDetails(giftID: string) {
