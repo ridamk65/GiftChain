@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useWeb3 } from '../hooks/useWeb3';
 import { GiftService } from '../services/giftService';
 import { CONTRACT_ADDRESSES } from '../config/contracts';
+import { QRCodeGenerator } from './QRCodeGenerator';
 
 export const CreateGift: React.FC = () => {
   const { signer, isConnected } = useWeb3();
@@ -9,6 +10,7 @@ export const CreateGift: React.FC = () => {
   const [message, setMessage] = useState('');
   const [expiryDays, setExpiryDays] = useState(7);
   const [loading, setLoading] = useState(false);
+  const [createdGift, setCreatedGift] = useState<{id: string, message: string, amount: string} | null>(null);
 
   const handleCreateGift = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +26,12 @@ export const CreateGift: React.FC = () => {
         message
       );
       
-      alert(`Gift created! ID: ${result.giftID}`);
+      setCreatedGift({
+        id: result.giftID,
+        message: message,
+        amount: amount
+      });
+      
       setAmount('');
       setMessage('');
     } catch (error) {
@@ -89,6 +96,16 @@ export const CreateGift: React.FC = () => {
           {loading ? 'Creating...' : 'Create Gift'}
         </button>
       </form>
+      
+      {createdGift && (
+        <div className="mt-6">
+          <QRCodeGenerator 
+            giftId={createdGift.id}
+            message={createdGift.message}
+            amount={createdGift.amount}
+          />
+        </div>
+      )}
     </div>
   );
 };

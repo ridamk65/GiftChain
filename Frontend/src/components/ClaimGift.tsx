@@ -8,6 +8,21 @@ export const ClaimGift: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [giftDetails, setGiftDetails] = useState<any>(null);
 
+  // Auto-populate gift ID from URL parameters
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const giftIdFromUrl = urlParams.get('id');
+    if (giftIdFromUrl && !giftId) {
+      setGiftId(giftIdFromUrl);
+      // Auto-validate if gift ID is provided via URL
+      setTimeout(() => {
+        if (signer) {
+          handleValidateGift();
+        }
+      }, 1000);
+    }
+  }, [signer]);
+
   const handleValidateGift = async () => {
     if (!signer || !giftId) return;
 
