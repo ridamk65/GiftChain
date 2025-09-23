@@ -14,9 +14,12 @@ import { GiftCardDisplay } from './components/GiftCardDisplay';
 import { TransactionHistory } from './components/TransactionHistory';
 import { UserDashboard } from './components/UserDashboard';
 import { GroupGifting } from './components/GroupGifting';
+import { LanguageSelector } from './components/LanguageSelector';
+import { LanguageProvider, useTranslation } from './i18n/useTranslation';
 import { Web3Provider } from './hooks/useWeb3';
 
-export function App() {
+function AppContent() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('home');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
@@ -61,7 +64,7 @@ export function App() {
                   onClick={() => setActiveTab('home')}
                   className={`px-4 py-2 rounded ${activeTab === 'home' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
                 >
-                  Home
+                  {t.home}
                 </button>
                 
                 {/* Show these tabs only when authenticated */}
@@ -71,43 +74,43 @@ export function App() {
                       onClick={() => setActiveTab('create')}
                       className={`px-4 py-2 rounded ${activeTab === 'create' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
                     >
-                      Create Gift
+                      {t.createGift}
                     </button>
                     <button
                       onClick={() => setActiveTab('claim')}
                       className={`px-4 py-2 rounded ${activeTab === 'claim' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
                     >
-                      Claim Gift
+                      {t.claimGift}
                     </button>
                     <button
                       onClick={() => setActiveTab('bulk')}
                       className={`px-4 py-2 rounded ${activeTab === 'bulk' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
                     >
-                      Bulk Create
+                      {t.bulkCreate}
                     </button>
                     <button
                       onClick={() => setActiveTab('giftcard')}
                       className={`px-4 py-2 rounded ${activeTab === 'giftcard' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
                     >
-                      Gift Cards
+                      {t.giftCards}
                     </button>
                     <button
                       onClick={() => setActiveTab('history')}
                       className={`px-4 py-2 rounded ${activeTab === 'history' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
                     >
-                      History
+                      {t.history}
                     </button>
                     <button
                       onClick={() => setActiveTab('dashboard')}
                       className={`px-4 py-2 rounded ${activeTab === 'dashboard' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
                     >
-                      Dashboard
+                      {t.dashboard}
                     </button>
                     <button
                       onClick={() => setActiveTab('group')}
                       className={`px-4 py-2 rounded ${activeTab === 'group' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
                     >
-                      Group Gift
+                      {t.groupGift}
                     </button>
                   </>
                 )}
@@ -115,7 +118,7 @@ export function App() {
                 {/* Show login/logout based on auth status */}
                 {isAuthenticated ? (
                   <div className="flex items-center space-x-3">
-                    <span className="text-sm text-gray-600">Welcome, {user?.fullName}</span>
+                    <span className="text-sm text-gray-600">{t.welcome}, {user?.fullName}</span>
                     <button
                       onClick={() => {
                         localStorage.removeItem('token');
@@ -126,20 +129,21 @@ export function App() {
                       }}
                       className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
                     >
-                      Logout
+                      {t.logout}
                     </button>
                   </div>
                 ) : (
                   <div className="flex space-x-2">
                     <a href="/login" className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-                      Login
+                      {t.login}
                     </a>
                     <a href="/signin" className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                      Sign Up
+                      {t.signup}
                     </a>
                   </div>
                 )}
                 
+                <LanguageSelector />
                 <WalletConnect />
               </div>
             </div>
@@ -171,5 +175,13 @@ export function App() {
         </div>
       </BrowserRouter>
     </Web3Provider>
+  );
+}
+
+export function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }

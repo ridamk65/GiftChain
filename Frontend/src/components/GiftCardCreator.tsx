@@ -5,6 +5,9 @@ import { CONTRACT_ADDRESSES } from '../config/contracts';
 import { AnimatedGiftCard } from './AnimatedGiftCard';
 import { TemplateSelector, GiftTemplate, giftTemplates } from './GiftTemplates';
 import { SocialShare } from './SocialShare';
+import { TokenSelector, supportedTokens, Token } from './TokenSelector';
+import { VideoMessage } from './VideoMessage';
+import { CurrencyConverter } from './CurrencyConverter';
 
 export const GiftCardCreator: React.FC = () => {
   const { signer, isConnected } = useWeb3();
@@ -15,7 +18,10 @@ export const GiftCardCreator: React.FC = () => {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [expiryDays, setExpiryDays] = useState(7);
   const [selectedTemplate, setSelectedTemplate] = useState<GiftTemplate>(giftTemplates[0]);
+  const [selectedToken, setSelectedToken] = useState<Token>(supportedTokens[0]);
   const [playMusic, setPlayMusic] = useState(false);
+  const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [createdGift, setCreatedGift] = useState<{
     id: string;
@@ -35,7 +41,7 @@ export const GiftCardCreator: React.FC = () => {
     try {
       const giftService = new GiftService(signer);
       const result = await giftService.createGift(
-        CONTRACT_ADDRESSES.MOCK_ERC20,
+        selectedToken.address,
         amount,
         expiryDays,
         message
@@ -54,8 +60,11 @@ export const GiftCardCreator: React.FC = () => {
           amount: amount,
           message: message,
           expiry: Math.floor(expiryDate.getTime() / 1000),
-          tokenAddress: CONTRACT_ADDRESSES.MOCK_ERC20,
-          recipientEmail: recipientEmail
+          tokenAddress: selectedToken.address,
+          tokenSymbol: selectedToken.symbol,
+          recipientEmail: recipientEmail,
+          hasVideo: !!videoBlob,
+          videoUrl: videoUrl
         })
       });
       
@@ -159,6 +168,11 @@ export const GiftCardCreator: React.FC = () => {
           onSelect={setSelectedTemplate}
         />
         
+        <TokenSelector
+          selectedToken={selectedToken}
+          onSelect={setSelectedToken}
+        />
+        
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2">From (Your Name)</label>
@@ -200,15 +214,23 @@ export const GiftCardCreator: React.FC = () => {
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2">Amount (Tokens)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full p-3 border rounded-lg"
-              placeholder="e.g., 10"
-              required
-            />
+            <div className="space-y-2">
+              <input
+                type="number"
+                step={selectedToken.decimals === 6 ? "0.01" : "0.001"}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full p-3 border rounded-lg"
+                placeholder={`e.g., ${selectedToken.isStable ? '10.00' : '0.1'}`}
+                required
+              />
+              {amount && (
+                <CurrencyConverter 
+                  tokenAmount={amount}
+                  tokenPrice={selectedToken.isStable ? 1 : 2.5}
+                />
+              )}
+            </div>
           </div>
           
           <div>
@@ -240,6 +262,14 @@ export const GiftCardCreator: React.FC = () => {
           />
           <p className="text-xs text-gray-500 mt-1">{message.length}/100 characters</p>
         </div>
+        
+        <VideoMessage
+          onVideoRecorded={(blob, url) => {
+            setVideoBlob(blob);
+            setVideoUrl(url);
+          }}
+          existingVideoUrl={videoUrl}
+        />
         
         <div className="flex items-center gap-4 mb-4">
           <label className="flex items-center gap-2">
