@@ -25,11 +25,11 @@ const LandingPage = () => {
               is securely tracked on the blockchain, ensuring your generosity
               reaches those who need it most.
             </p>
-            <button onClick={() => navigate('/donate')} className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-pink-500 to-purple-600 rounded-full overflow-hidden shadow-lg transition-all duration-300 hover:shadow-pink-500/30 hover:scale-105">
+            <button onClick={() => navigate('/signin')} className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-pink-500 to-purple-600 rounded-full overflow-hidden shadow-lg transition-all duration-300 hover:shadow-pink-500/30 hover:scale-105">
               <span className="absolute inset-0 w-full h-full bg-gradient-to-br from-pink-500 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-out"></span>
               <span className="relative flex items-center">
                 <span className="mr-2 text-2xl animate-pulse">❤️</span>
-                Donate Now
+                Get Started
               </span>
             </button>
           </div>

@@ -1,0 +1,105 @@
+/* Gift Card Animations */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+}
+
+@keyframes snow-fall {
+  0% { transform: translateY(-100vh); opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+@keyframes petal-drift {
+  0% { transform: translateY(-50px) translateX(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) translateX(50px) rotate(180deg); opacity: 0; }
+}
+
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes gentle-sway {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(5px) rotate(1deg); }
+  75% { transform: translateX(-5px) rotate(-1deg); }
+}
+
+/* Template-specific animations */
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-sparkle {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.animate-heartbeat {
+  animation: heartbeat 1.5s ease-in-out infinite;
+}
+
+.animate-confetti {
+  animation: confetti-fall 3s linear infinite;
+}
+
+.animate-snow {
+  animation: snow-fall 4s linear infinite;
+}
+
+.animate-petals {
+  animation: petal-drift 5s linear infinite;
+}
+
+.animate-twinkle {
+  animation: star-twinkle 2s ease-in-out infinite;
+}
+
+.animate-gentle {
+  animation: gentle-sway 4s ease-in-out infinite;
+}
+
+/* Hover effects for gift cards */
+.gift-card-hover {
+  transition: all 0.3s ease;
+}
+
+.gift-card-hover:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Music visualization */
+@keyframes music-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.music-playing {
+  animation: music-pulse 1s ease-in-out infinite;
+}
+
+/* Template preview animations */
+.template-preview {
+  transition: all 0.2s ease;
+}
+
+.template-preview:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}

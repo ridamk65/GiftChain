@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useWeb3 } from '../hooks/useWeb3';
 import { GiftService } from '../services/giftService';
 import { CONTRACT_ADDRESSES } from '../config/contracts';
-import { GiftCard } from './GiftCard';
+import { AnimatedGiftCard } from './AnimatedGiftCard';
+import { TemplateSelector, GiftTemplate, giftTemplates } from './GiftTemplates';
+import { SocialShare } from './SocialShare';
 
 export const GiftCardCreator: React.FC = () => {
   const { signer, isConnected } = useWeb3();
@@ -12,6 +14,8 @@ export const GiftCardCreator: React.FC = () => {
   const [recipientName, setRecipientName] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [expiryDays, setExpiryDays] = useState(7);
+  const [selectedTemplate, setSelectedTemplate] = useState<GiftTemplate>(giftTemplates[0]);
+  const [playMusic, setPlayMusic] = useState(false);
   const [loading, setLoading] = useState(false);
   const [createdGift, setCreatedGift] = useState<{
     id: string;
@@ -20,6 +24,7 @@ export const GiftCardCreator: React.FC = () => {
     senderName: string;
     recipientName: string;
     expiryDate: string;
+    template: GiftTemplate;
   } | null>(null);
 
   const handleCreateGiftCard = async (e: React.FormEvent) => {
@@ -61,7 +66,8 @@ export const GiftCardCreator: React.FC = () => {
         senderName: senderName || 'Anonymous',
         recipientName: recipientName || 'Dear Friend',
         recipientEmail: recipientEmail,
-        expiryDate: expiryDate.toLocaleDateString()
+        expiryDate: expiryDate.toLocaleDateString(),
+        template: selectedTemplate
       });
       
       // Auto-send email if recipient email provided
@@ -119,14 +125,26 @@ export const GiftCardCreator: React.FC = () => {
           </button>
         </div>
         
-        <GiftCard
+        <AnimatedGiftCard
           giftId={createdGift.id}
           message={createdGift.message}
           amount={createdGift.amount}
           senderName={createdGift.senderName}
           recipientName={createdGift.recipientName}
           expiryDate={createdGift.expiryDate}
+          template={createdGift.template}
+          playMusic={playMusic}
         />
+        
+        {/* Social Sharing */}
+        <div className="mt-6 flex justify-center">
+          <SocialShare
+            giftId={createdGift.id}
+            message={createdGift.message}
+            amount={createdGift.amount}
+            senderName={createdGift.senderName}
+          />
+        </div>
       </div>
     );
   }
@@ -136,6 +154,11 @@ export const GiftCardCreator: React.FC = () => {
       <h2 className="text-2xl font-bold mb-6 text-center">🎁 Create Gift Card</h2>
       
       <form onSubmit={handleCreateGiftCard} className="space-y-6">
+        <TemplateSelector 
+          selectedTemplate={selectedTemplate}
+          onSelect={setSelectedTemplate}
+        />
+        
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2">From (Your Name)</label>
@@ -218,12 +241,24 @@ export const GiftCardCreator: React.FC = () => {
           <p className="text-xs text-gray-500 mt-1">{message.length}/100 characters</p>
         </div>
         
+        <div className="flex items-center gap-4 mb-4">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={playMusic}
+              onChange={(e) => setPlayMusic(e.target.checked)}
+              className="rounded"
+            />
+            <span className="text-sm">🎵 Play music with gift card</span>
+          </label>
+        </div>
+        
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 font-semibold text-lg"
+          className={`w-full bg-gradient-to-r ${selectedTemplate.colors.primary} text-white p-4 rounded-lg hover:opacity-90 disabled:opacity-50 font-semibold text-lg flex items-center justify-center gap-2`}
         >
-          {loading ? 'Creating Gift Card...' : '🎁 Create Beautiful Gift Card'}
+          {selectedTemplate.emoji} {loading ? 'Creating Gift Card...' : `Create ${selectedTemplate.occasion} Gift`}
         </button>
       </form>
 

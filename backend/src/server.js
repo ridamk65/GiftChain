@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -10,6 +12,10 @@ app.use(express.json());
 
 // In-memory storage (replace with database in production)
 const gifts = new Map();
+const users = new Map(); // Store users
+const groupGifts = new Map(); // Store group gifts
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Email configuration
 const transporter = nodemailer.createTransport({
@@ -242,6 +248,299 @@ app.post('/api/check-expiring-gifts', (req, res) => {
   res.json({ message: 'Expiry check triggered' });
 });
 
+// Get user statistics
+app.get('/api/user/stats/:userAddress', (req, res) => {
+  const { userAddress } = req.params;
+  const userAddress_lower = userAddress.toLowerCase();
+  
+  const sentGifts = Array.from(gifts.values()).filter(
+    gift => gift.creator.toLowerCase() === userAddress_lower
+  );
+  
+  const receivedGifts = Array.from(gifts.values()).filter(
+    gift => gift.claimedBy && gift.claimedBy.toLowerCase() === userAddress_lower
+  );
+  
+  const totalSent = sentGifts.reduce((sum, gift) => sum + parseFloat(gift.amount), 0);
+  const totalReceived = receivedGifts.reduce((sum, gift) => sum + parseFloat(gift.amount), 0);
+  
+  const stats = {
+    giftsSent: sentGifts.length,
+    giftsReceived: receivedGifts.length,
+    totalSent: totalSent.toFixed(2),
+    totalReceived: totalReceived.toFixed(2),
+    totalValue: (totalSent + totalReceived).toFixed(2),
+    pendingGifts: sentGifts.filter(gift => !gift.claimed).length,
+    expiredGifts: sentGifts.filter(gift => {
+      const now = Math.floor(Date.now() / 1000);
+      return gift.expiry < now && !gift.claimed;
+    }).length
+  };
+  
+  res.json(stats);
+});
+
+// Get transaction history for a user
+app.get('/api/history/:userAddress', (req, res) => {
+  const { userAddress } = req.params;
+  const userGifts = Array.from(gifts.values()).filter(
+    gift => gift.creator.toLowerCase() === userAddress.toLowerCase()
+  );
+  
+  // Sort by creation date (newest first)
+  const sortedGifts = userGifts.sort((a, b) => 
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  
+  res.json(sortedGifts);
+});
+
+// Get received gifts for a user
+app.get('/api/received/:userAddress', (req, res) => {
+  const { userAddress } = req.params;
+  const receivedGifts = Array.from(gifts.values()).filter(
+    gift => gift.claimedBy && gift.claimedBy.toLowerCase() === userAddress.toLowerCase()
+  );
+  
+  const sortedGifts = receivedGifts.sort((a, b) => 
+    new Date(b.claimedAt).getTime() - new Date(a.claimedAt).getTime()
+  );
+  
+  res.json(sortedGifts);
+});
+
+// Get all transactions (sent + received) for a user
+app.get('/api/transactions/:userAddress', (req, res) => {
+  const { userAddress } = req.params;
+  
+  const sentGifts = Array.from(gifts.values())
+    .filter(gift => gift.creator.toLowerCase() === userAddress.toLowerCase())
+    .map(gift => ({ ...gift, type: 'sent' }));
+    
+  const receivedGifts = Array.from(gifts.values())
+    .filter(gift => gift.claimedBy && gift.claimedBy.toLowerCase() === userAddress.toLowerCase())
+    .map(gift => ({ ...gift, type: 'received' }));
+    
+  const allTransactions = [...sentGifts, ...receivedGifts]
+    .sort((a, b) => {
+      const dateA = new Date(a.type === 'sent' ? a.createdAt : a.claimedAt);
+      const dateB = new Date(b.type === 'sent' ? b.createdAt : b.claimedAt);
+      return dateB.getTime() - dateA.getTime();
+    });
+    
+  res.json(allTransactions);
+});
+
+// User Authentication Routes
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { fullName, email, password, confirmPassword } = req.body;
+    
+    // Validation
+    if (!fullName || !email || !password || !confirmPassword) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+    
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: 'Passwords do not match' });
+    }
+    
+    if (users.has(email)) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+    
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Create user
+    const user = {
+      id: Date.now().toString(),
+      fullName,
+      email,
+      password: hashedPassword,
+      createdAt: new Date().toISOString()
+    };
+    
+    users.set(email, user);
+    
+    // Generate JWT
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    res.status(201).json({
+      message: 'Account created successfully',
+      token,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email
+      }
+    });
+    
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ error: 'Failed to create account' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    console.log('Login attempt for:', email);
+    console.log('Total users in system:', users.size);
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+    
+    const user = users.get(email);
+    console.log('User found:', !!user);
+    if (!user) {
+      console.log('Available users:', Array.from(users.keys()));
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    // Generate JWT
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    res.json({
+      message: 'Login successful',
+      token,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email
+      }
+    });
+    
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    const user = users.get(email);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // In production, send actual email
+    console.log(`Password reset requested for: ${email}`);
+    
+    res.json({ message: 'Password reset instructions sent to your email' });
+    
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Failed to process request' });
+  }
+});
+
+// Group Gift Routes
+app.post('/api/group-gifts', (req, res) => {
+  try {
+    const groupGift = req.body;
+    groupGifts.set(groupGift.id, {
+      ...groupGift,
+      createdAt: new Date().toISOString()
+    });
+    
+    res.status(201).json({ 
+      message: 'Group gift created successfully',
+      id: groupGift.id 
+    });
+  } catch (error) {
+    console.error('Error creating group gift:', error);
+    res.status(500).json({ error: 'Failed to create group gift' });
+  }
+});
+
+app.post('/api/group-gifts/invite', async (req, res) => {
+  try {
+    const { 
+      groupGiftId, 
+      contributorEmail, 
+      contributorName, 
+      amount, 
+      recipientName, 
+      message 
+    } = req.body;
+    
+    // Send invitation email
+    const inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/group-gift/${groupGiftId}`;
+    
+    const mailOptions = {
+      from: process.env.EMAIL_USER || 'noreply@giftchain.com',
+      to: contributorEmail,
+      subject: `🎁 You're invited to contribute to a group gift!`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #4F46E5; font-size: 28px;">🎁 Group Gift Invitation</h1>
+          </div>
+          
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; margin: 20px 0;">
+            <h3 style="margin: 0 0 15px 0;">You're Invited to Contribute!</h3>
+            <p style="margin: 5px 0;"><strong>🎁 For:</strong> ${recipientName}</p>
+            <p style="margin: 5px 0;"><strong>💰 Your Amount:</strong> ${amount} tokens</p>
+            <p style="margin: 5px 0;"><strong>💌 Message:</strong> "${message}"</p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${inviteUrl}" 
+               style="background: #10B981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 16px;">
+              🚀 Contribute Now
+            </a>
+          </div>
+          
+          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
+            <p style="color: #6B7280; font-size: 14px;">Powered by GiftChain - Group Crypto Gifting</p>
+          </div>
+        </div>
+      `
+    };
+    
+    await transporter.sendMail(mailOptions);
+    console.log('Group gift invitation sent to:', contributorEmail);
+    
+    res.json({ message: 'Invitation sent successfully' });
+  } catch (error) {
+    console.error('Failed to send group gift invitation:', error);
+    res.status(500).json({ error: 'Failed to send invitation' });
+  }
+});
+
+app.get('/api/group-gifts/:id', (req, res) => {
+  const { id } = req.params;
+  const groupGift = groupGifts.get(id);
+  
+  if (!groupGift) {
+    return res.status(404).json({ error: 'Group gift not found' });
+  }
+  
+  res.json(groupGift);
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log('🎁 GiftChain Backend Ready!');
+  console.log('📊 User Dashboard API enabled');
+  console.log('📧 Email notifications active');
+  console.log('🔐 Authentication system enabled');
+  console.log('👥 Group gifting enabled');
 });
