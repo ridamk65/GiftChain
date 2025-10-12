@@ -7,7 +7,10 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
 app.use(express.json());
 
 // In-memory storage (replace with database in production)
@@ -15,14 +18,14 @@ const gifts = new Map();
 const users = new Map(); // Store users
 const groupGifts = new Map(); // Store group gifts
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || require('crypto').randomBytes(64).toString('hex');
 
 // Email configuration
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER || 'your-email@gmail.com',
-    pass: process.env.EMAIL_PASS || 'your-app-password'
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
 });
 
@@ -47,7 +50,7 @@ const sendGiftNotification = async (recipientEmail, giftData) => {
         </div>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="http://10.98.26.231:5173/gift?id=${giftData.giftId}" 
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/gift?id=${giftData.giftId}" 
              style="background: #10B981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 16px;">
             🎉 View & Claim Your Gift
           </a>
@@ -101,7 +104,7 @@ const sendExpiryReminder = async (recipientEmail, giftData, daysLeft) => {
         </div>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="http://10.98.26.231:5173/gift?id=${giftData.giftId}" 
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/gift?id=${giftData.giftId}" 
              style="background: ${urgencyColor}; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 18px;">
             🚀 Claim Now Before It Expires!
           </a>
@@ -312,6 +315,8 @@ app.get('/api/received/:userAddress', (req, res) => {
 // Get all transactions (sent + received) for a user
 app.get('/api/transactions/:userAddress', (req, res) => {
   const { userAddress } = req.params;
+  console.log('Transaction history requested for:', userAddress);
+  console.log('Total gifts in system:', gifts.size);
   
   const sentGifts = Array.from(gifts.values())
     .filter(gift => gift.creator.toLowerCase() === userAddress.toLowerCase())
@@ -327,6 +332,10 @@ app.get('/api/transactions/:userAddress', (req, res) => {
       const dateB = new Date(b.type === 'sent' ? b.createdAt : b.claimedAt);
       return dateB.getTime() - dateA.getTime();
     });
+  
+  console.log('Sent gifts found:', sentGifts.length);
+  console.log('Received gifts found:', receivedGifts.length);
+  console.log('Total transactions returning:', allTransactions.length);
     
   res.json(allTransactions);
 });
@@ -536,6 +545,22 @@ app.get('/api/group-gifts/:id', (req, res) => {
   res.json(groupGift);
 });
 
+// Debug endpoint to check system state
+app.get('/api/debug/status', (req, res) => {
+  res.json({
+    totalGifts: gifts.size,
+    totalUsers: users.size,
+    totalGroupGifts: groupGifts.size,
+    gifts: Array.from(gifts.entries()).map(([id, gift]) => ({
+      id,
+      creator: gift.creator,
+      amount: gift.amount,
+      claimed: gift.claimed,
+      createdAt: gift.createdAt
+    }))
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('🎁 GiftChain Backend Ready!');
@@ -543,4 +568,5 @@ app.listen(PORT, () => {
   console.log('📧 Email notifications active');
   console.log('🔐 Authentication system enabled');
   console.log('👥 Group gifting enabled');
+  console.log(`\n🔍 Debug endpoint: http://localhost:${PORT}/api/debug/status`);
 });

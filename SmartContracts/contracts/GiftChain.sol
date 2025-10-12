@@ -334,7 +334,6 @@ contract GiftChain is ReentrancyGuard {
     uint256 _deadline,
     bytes32 _campaignID
 ) external {
-    // Validate inputs
     if (bytes(_title).length == 0) revert GiftErrors.INVALID_TITLE();
     if (bytes(_description).length == 0 || bytes(_description).length > 50) 
         revert GiftErrors.INVALID_DESCRIPTION();
@@ -343,7 +342,6 @@ contract GiftChain is ReentrancyGuard {
     if (campaigns[_campaignID].creator != address(0)) revert GiftErrors.CAMPAIGN_ALREADY_EXIST();
     if (_token == address(0)) revert GiftErrors.INVALID_ADDRESS();
 
-    // Create campaign
     campaigns[_campaignID] = Campaign({
         creator: msg.sender,
         token: _token,
@@ -371,14 +369,12 @@ function donateToCampaign(
 ) external nonReentrant {
     Campaign storage campaign = campaigns[_campaignID];
 
-    // Validate campaign
     if (campaign.creator == address(0)) revert GiftErrors.CAMPAIGN_NOT_FOUND();
     if (block.timestamp > campaign.deadline) revert GiftErrors.CAMPAIGN_EXPIRED();
     if (_amount == 0) revert GiftErrors.INVALID_AMOUNT();
     if (campaign.raisedAmount + _amount > campaign.goal) 
         revert GiftErrors.EXCEEDS_CAMPAIGN_GOAL();
 
-    // Transfer tokens
     IERC20 token = IERC20(campaign.token);
     token.safeTransferFrom(msg.sender, address(this), _amount);
 

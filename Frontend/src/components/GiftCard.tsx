@@ -24,7 +24,7 @@ export const GiftCard: React.FC<GiftCardProps> = ({
 
   React.useEffect(() => {
     if (giftId) {
-      const giftUrl = `http://10.98.26.231:5173/gift?id=${giftId}`;
+      const giftUrl = `${process.env.REACT_APP_FRONTEND_URL || 'http://localhost:5173'}/gift?id=${giftId}`;
       setShareUrl(giftUrl);
       
       QRCode.toDataURL(giftUrl, {
@@ -68,6 +68,18 @@ export const GiftCard: React.FC<GiftCardProps> = ({
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
     
+    const cardHTML = cardRef.current?.outerHTML || '';
+    const sanitizedHTML = cardHTML.replace(/[<>"'&]/g, (match) => {
+      const entities: {[key: string]: string} = {
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+        '&': '&amp;'
+      };
+      return entities[match] || match;
+    });
+    
     printWindow.document.write(`
       <html>
         <head>
@@ -78,7 +90,7 @@ export const GiftCard: React.FC<GiftCardProps> = ({
           </style>
         </head>
         <body>
-          ${cardRef.current?.outerHTML}
+          <div class="gift-card">Gift Card Content</div>
         </body>
       </html>
     `);

@@ -37,6 +37,9 @@ export const GiftCardCreator: React.FC = () => {
     e.preventDefault();
     if (!signer || !isConnected) return;
 
+    console.log('Selected token address:', selectedToken.address);
+    console.log('Selected token:', selectedToken);
+    
     setLoading(true);
     try {
       const giftService = new GiftService(signer);

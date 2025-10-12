@@ -10,42 +10,16 @@ export interface Token {
   description: string;
 }
 
+// Cache bust: 2025-01-12-v2
 export const supportedTokens: Token[] = [
   {
-    address: '0xA0b86a33E6441b8dB2B2B0b0b0b0b0b0b0b0b0b0', // Mock USDC
-    symbol: 'USDC',
-    name: 'USD Coin',
-    decimals: 6,
-    icon: '💵',
-    isStable: true,
-    description: 'Stable value pegged to USD'
-  },
-  {
-    address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', // Mock USDT
-    symbol: 'USDT',
-    name: 'Tether USD',
-    decimals: 6,
-    icon: '💰',
-    isStable: true,
-    description: 'Stable value pegged to USD'
-  },
-  {
-    address: '0x0165878A594ca255338adfa4d48449f69242Eb8F', // Our mock token
-    symbol: 'GIFT',
-    name: 'Gift Token',
+    address: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0', // MockERC20 deployed address
+    symbol: 'MOCK',
+    name: 'Mock Token',
     decimals: 18,
     icon: '🎁',
     isStable: false,
-    description: 'GiftChain native token'
-  },
-  {
-    address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // Mock WETH
-    symbol: 'WETH',
-    name: 'Wrapped Ethereum',
-    decimals: 18,
-    icon: '⚡',
-    isStable: false,
-    description: 'Wrapped Ethereum token'
+    description: 'Test token for GiftChain'
   }
 ];
 

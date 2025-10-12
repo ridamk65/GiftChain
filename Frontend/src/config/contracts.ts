@@ -1,6 +1,6 @@
 export const CONTRACT_ADDRESSES = {
-  GIFT_CHAIN: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9", // Updated with deployed address
-  MOCK_ERC20: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9" // MockERC20 token address
+  GIFT_CHAIN: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9", // Updated with deployed address
+  MOCK_ERC20: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0" // MockERC20 token address
 };
 
 export const NETWORK_CONFIG = {

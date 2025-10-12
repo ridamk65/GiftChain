@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+require("@nomicfoundation/hardhat-chai-matchers");
 
 describe("GiftChain", function () {
   let owner, recipient, relayer, token, giftChain;

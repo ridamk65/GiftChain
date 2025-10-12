@@ -41,6 +41,8 @@ export const TransactionHistory: React.FC = () => {
       }
     } catch (error) {
       console.error('Error loading transaction history:', error);
+      // Show user-friendly error message
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -173,6 +175,14 @@ export const TransactionHistory: React.FC = () => {
                filter === 'received' ? 'You haven\'t received any gifts yet' : 
                'Start by creating your first gift!'}
             </p>
+            <div className="mt-6">
+              <button
+                onClick={() => window.location.hash = '#create'}
+                className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 font-medium"
+              >
+                🎁 Create Your First Gift
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">

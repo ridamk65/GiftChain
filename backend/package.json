@@ -1,5 +1,5 @@
 {
-  "name": "giftchain-backend",
+  "name": "@giftchain/backend",
   "version": "1.0.0",
   "description": "Backend API for GiftChain",
   "main": "src/server.js",
