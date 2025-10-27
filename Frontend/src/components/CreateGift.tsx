@@ -26,6 +26,23 @@ export const CreateGift: React.FC = () => {
         message
       );
       
+      // Store gift in backend database
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + expiryDays);
+      
+      await fetch('http://localhost:3001/api/gifts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          giftId: result.giftID,
+          creator: await signer.getAddress(),
+          amount: amount,
+          message: message,
+          expiry: Math.floor(expiryDate.getTime() / 1000),
+          tokenAddress: CONTRACT_ADDRESSES.MOCK_ERC20
+        })
+      });
+      
       setCreatedGift({
         id: result.giftID,
         message: message,

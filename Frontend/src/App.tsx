@@ -15,6 +15,7 @@ import { TransactionHistory } from './components/TransactionHistory';
 import { UserDashboard } from './components/UserDashboard';
 import { GroupGifting } from './components/GroupGifting';
 import { LanguageSelector } from './components/LanguageSelector';
+import { NetworkSelector } from './components/NetworkSelector';
 import { LanguageProvider, useTranslation } from './i18n/useTranslation';
 import { Web3Provider } from './hooks/useWeb3';
 
@@ -35,22 +36,30 @@ function AppContent() {
     }
   }, []);
 
-  // Auto-switch tabs based on URL parameters
+
+
+  // Redirect to dashboard after authentication
   React.useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const giftIdFromUrl = urlParams.get('id');
-    const tabFromUrl = urlParams.get('tab');
-    
-    if (tabFromUrl) {
-      setActiveTab(tabFromUrl);
-    } else if (giftIdFromUrl) {
-      if (window.location.pathname === '/gift') {
-        setActiveTab('gift-display');
-      } else {
-        setActiveTab('claim');
-      }
+    if (isAuthenticated && activeTab === 'home') {
+      setActiveTab('dashboard');
     }
-  }, []);
+  }, [isAuthenticated]);
+
+  // Show auth pages if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <BrowserRouter>
+        <div className="min-h-screen bg-gray-50">
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/signin" element={<SignInPage />} />
+            <Route path="/login" element={<LogInPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          </Routes>
+        </div>
+      </BrowserRouter>
+    );
+  }
 
   return (
     <Web3Provider>
@@ -61,88 +70,53 @@ function AppContent() {
               <h1 className="text-2xl font-bold text-blue-600">GiftChain</h1>
               <div className="flex space-x-4">
                 <button
-                  onClick={() => setActiveTab('home')}
-                  className={`px-4 py-2 rounded ${activeTab === 'home' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`px-4 py-2 rounded ${activeTab === 'dashboard' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
                 >
-                  {t.home}
+                  {t.dashboard}
+                </button>
+                <button
+                  onClick={() => setActiveTab('create')}
+                  className={`px-4 py-2 rounded ${activeTab === 'create' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+                >
+                  {t.createGift}
+                </button>
+                <button
+                  onClick={() => setActiveTab('claim')}
+                  className={`px-4 py-2 rounded ${activeTab === 'claim' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+                >
+                  {t.claimGift}
+                </button>
+                <button
+                  onClick={() => setActiveTab('giftcard')}
+                  className={`px-4 py-2 rounded ${activeTab === 'giftcard' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+                >
+                  {t.giftCards}
+                </button>
+                <button
+                  onClick={() => setActiveTab('history')}
+                  className={`px-4 py-2 rounded ${activeTab === 'history' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+                >
+                  {t.history}
                 </button>
                 
-                {/* Show these tabs only when authenticated */}
-                {isAuthenticated && (
-                  <>
-                    <button
-                      onClick={() => setActiveTab('create')}
-                      className={`px-4 py-2 rounded ${activeTab === 'create' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
-                    >
-                      {t.createGift}
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('claim')}
-                      className={`px-4 py-2 rounded ${activeTab === 'claim' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
-                    >
-                      {t.claimGift}
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('bulk')}
-                      className={`px-4 py-2 rounded ${activeTab === 'bulk' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
-                    >
-                      {t.bulkCreate}
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('giftcard')}
-                      className={`px-4 py-2 rounded ${activeTab === 'giftcard' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
-                    >
-                      {t.giftCards}
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('history')}
-                      className={`px-4 py-2 rounded ${activeTab === 'history' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
-                    >
-                      {t.history}
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('dashboard')}
-                      className={`px-4 py-2 rounded ${activeTab === 'dashboard' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
-                    >
-                      {t.dashboard}
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('group')}
-                      className={`px-4 py-2 rounded ${activeTab === 'group' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
-                    >
-                      {t.groupGift}
-                    </button>
-                  </>
-                )}
+                <div className="flex items-center space-x-3">
+                  <span className="text-sm text-gray-600">{t.welcome}, {user?.fullName}</span>
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem('token');
+                      localStorage.removeItem('user');
+                      setIsAuthenticated(false);
+                      setUser(null);
+                      setActiveTab('home');
+                    }}
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                  >
+                    {t.logout}
+                  </button>
+                </div>
                 
-                {/* Show login/logout based on auth status */}
-                {isAuthenticated ? (
-                  <div className="flex items-center space-x-3">
-                    <span className="text-sm text-gray-600">{t.welcome}, {user?.fullName}</span>
-                    <button
-                      onClick={() => {
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('user');
-                        setIsAuthenticated(false);
-                        setUser(null);
-                        setActiveTab('home');
-                      }}
-                      className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                    >
-                      {t.logout}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex space-x-2">
-                    <a href="/login" className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-                      {t.login}
-                    </a>
-                    <a href="/signin" className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                      {t.signup}
-                    </a>
-                  </div>
-                )}
-                
+                <NetworkSelector />
                 <LanguageSelector />
                 <WalletConnect />
               </div>
@@ -150,27 +124,11 @@ function AppContent() {
           </nav>
 
           <main className="max-w-6xl mx-auto p-6">
-            {activeTab === 'gift-display' ? (
-              <GiftCardDisplay />
-            ) : (
-              <>
-                {activeTab === 'home' && (
-                  <Routes>
-                    <Route path="/" element={<LandingPage />} />
-                    <Route path="/signin" element={<SignInPage />} />
-                    <Route path="/login" element={<LogInPage />} />
-                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                  </Routes>
-                )}
-                {activeTab === 'create' && <CreateGift />}
-                {activeTab === 'claim' && <ClaimGift />}
-                {activeTab === 'bulk' && <BulkGiftCreator />}
-                {activeTab === 'giftcard' && <GiftCardCreator />}
-                {activeTab === 'history' && <TransactionHistory />}
-                {activeTab === 'dashboard' && <UserDashboard />}
-                {activeTab === 'group' && <GroupGifting />}
-              </>
-            )}
+            {activeTab === 'dashboard' && <UserDashboard />}
+            {activeTab === 'create' && <CreateGift />}
+            {activeTab === 'claim' && <ClaimGift />}
+            {activeTab === 'giftcard' && <GiftCardCreator />}
+            {activeTab === 'history' && <TransactionHistory />}
           </main>
         </div>
       </BrowserRouter>

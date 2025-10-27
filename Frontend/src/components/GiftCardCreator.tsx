@@ -82,20 +82,11 @@ export const GiftCardCreator: React.FC = () => {
         template: selectedTemplate
       });
       
-      // Auto-send email if recipient email provided
+      // Show success message
       if (recipientEmail) {
-        setTimeout(async () => {
-          try {
-            await fetch(`http://localhost:3001/api/gifts/${result.giftID}/notify`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ recipientEmail })
-            });
-            alert('📧 Gift created and email notification sent!');
-          } catch (error) {
-            console.log('Email notification failed, but gift created successfully');
-          }
-        }, 1000);
+        alert(`🎁 Gift card created successfully!\n📧 Notification would be sent to: ${recipientEmail}`);
+      } else {
+        alert('🎁 Gift card created successfully!');
       }
       
       // Reset form
@@ -253,17 +244,17 @@ export const GiftCardCreator: React.FC = () => {
         </div>
         
         <div>
-          <label className="block text-sm font-medium mb-2">Gift Message</label>
+          <label className="block text-sm font-medium mb-2">Personal Message</label>
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             className="w-full p-3 border rounded-lg h-24 resize-none"
-            placeholder="Write a personal message for the recipient..."
+            placeholder="Write a heartfelt message from you to them..."
             minLength={3}
             maxLength={100}
             required
           />
-          <p className="text-xs text-gray-500 mt-1">{message.length}/100 characters</p>
+          <p className="text-xs text-gray-500 mt-1">{message.length}/100 characters - Make it personal!</p>
         </div>
         
         <VideoMessage
@@ -297,22 +288,22 @@ export const GiftCardCreator: React.FC = () => {
 
       {/* Preview Section */}
       <div className="mt-8 p-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border">
-        <h3 className="font-semibold mb-3 text-center">✨ What you'll get:</h3>
+        <h3 className="font-semibold mb-3 text-center">💝 Your Personal Gift Includes:</h3>
         <div className="grid md:grid-cols-3 gap-4 text-sm text-center">
           <div className="bg-white p-3 rounded-lg">
-            <div className="text-2xl mb-2">🎨</div>
-            <p className="font-medium">Beautiful Design</p>
-            <p className="text-gray-600">Professional gift card with your personal touch</p>
+            <div className="text-2xl mb-2">💌</div>
+            <p className="font-medium">Your Personal Touch</p>
+            <p className="text-gray-600">Handcrafted message that shows you care</p>
           </div>
           <div className="bg-white p-3 rounded-lg">
-            <div className="text-2xl mb-2">📱</div>
-            <p className="font-medium">QR Code</p>
-            <p className="text-gray-600">Easy scanning for instant claiming</p>
+            <div className="text-2xl mb-2">🤝</div>
+            <p className="font-medium">Human Connection</p>
+            <p className="text-gray-600">Real person to real person gifting</p>
           </div>
           <div className="bg-white p-3 rounded-lg">
-            <div className="text-2xl mb-2">🖨️</div>
-            <p className="font-medium">Print Ready</p>
-            <p className="text-gray-600">Download or print for physical gifting</p>
+            <div className="text-2xl mb-2">❤️</div>
+            <p className="font-medium">Made with Love</p>
+            <p className="text-gray-600">Every gift tells your unique story</p>
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWeb3 } from '../hooks/useWeb3';
+import { ExplorerLink } from './ExplorerLink';
 
 interface Transaction {
   giftId: string;
@@ -250,8 +251,10 @@ export const TransactionHistory: React.FC = () => {
                     </button>
                   )}
                   
-                  <div className="text-xs text-gray-500 px-3 py-1">
-                    ID: {transaction.giftId.slice(0, 16)}...
+                  <div className="text-xs px-3 py-1">
+                    <ExplorerLink hash={transaction.giftId} type="tx" className="text-xs">
+                      View Transaction
+                    </ExplorerLink>
                   </div>
                   
                   <div className="text-xs text-gray-500 px-3 py-1">

@@ -11,15 +11,18 @@ export const ClaimGift: React.FC = () => {
   // Auto-populate gift ID from URL parameters
   React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const giftIdFromUrl = urlParams.get('id');
+    let giftIdFromUrl = urlParams.get('id');
+    
+    // Extract just the gift ID if it's a full URL
+    if (giftIdFromUrl && giftIdFromUrl.includes('http')) {
+      const match = giftIdFromUrl.match(/id=([^&]+)/);
+      if (match) {
+        giftIdFromUrl = match[1];
+      }
+    }
+    
     if (giftIdFromUrl && !giftId) {
       setGiftId(giftIdFromUrl);
-      // Auto-validate if gift ID is provided via URL
-      setTimeout(() => {
-        if (signer) {
-          handleValidateGift();
-        }
-      }, 1000);
     }
   }, [signer]);
 
@@ -51,7 +54,18 @@ export const ClaimGift: React.FC = () => {
     setLoading(true);
     try {
       const giftService = new GiftService(signer);
+      const claimerAddress = await signer.getAddress();
+      
+      // Claim the gift (simulated)
       await giftService.claimGift(giftId);
+      
+      // Record the claim in backend
+      await fetch(`http://localhost:3001/api/gifts/${giftId}/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimerAddress })
+      });
+      
       alert('Gift claimed successfully!');
       setGiftDetails(null);
       setGiftId('');

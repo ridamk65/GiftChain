@@ -40,13 +40,15 @@ export const AnimatedGiftCard: React.FC<AnimatedGiftCardProps> = ({
   }, [giftId]);
 
   useEffect(() => {
-    if (playMusic && audioRef.current && template.music) {
-      audioRef.current.play().catch(() => {
-        console.log('Audio autoplay blocked');
+    if (playMusic && audioRef.current) {
+      audioRef.current.play().catch((error) => {
+        console.log('Audio playback failed:', error);
+        alert('🎵 Music playback not available (audio files not found)');
+        setIsPlaying(false);
       });
       setIsPlaying(true);
     }
-  }, [playMusic, template.music]);
+  }, [playMusic]);
 
   const toggleMusic = () => {
     if (audioRef.current) {
@@ -179,25 +181,21 @@ export const AnimatedGiftCard: React.FC<AnimatedGiftCardProps> = ({
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Audio Element */}
-      {template.music && (
-        <audio ref={audioRef} loop>
-          <source src={template.music} type="audio/mpeg" />
-        </audio>
-      )}
+      <audio ref={audioRef} loop>
+        <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" type="audio/wav" />
+      </audio>
 
       {/* Music Control */}
-      {template.music && (
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={toggleMusic}
-            className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-              isPlaying ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            {isPlaying ? '🔊' : '🔇'} {isPlaying ? 'Playing' : 'Play Music'}
-          </button>
-        </div>
-      )}
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={toggleMusic}
+          className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+            isPlaying ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          {isPlaying ? '🔊' : '🔇'} {isPlaying ? 'Playing' : 'Play Music'}
+        </button>
+      </div>
 
       {/* Animated Gift Card */}
       <div 

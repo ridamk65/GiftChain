@@ -1,24 +1,63 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { body, validationResult } = require('express-validator');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const supabase = require('./supabase');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
+// Security Middleware
+app.use(helmet());
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
-// In-memory storage (replace with database in production)
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests, please try again later'
+});
+app.use(limiter);
+
+// Stricter rate limiting for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5, // 5 attempts per 15 minutes
+  message: 'Too many authentication attempts, please try again later'
+});
+
+// Fallback in-memory storage for when Supabase is not configured
 const gifts = new Map();
-const users = new Map(); // Store users
-const groupGifts = new Map(); // Store group gifts
+const users = new Map();
+const groupGifts = new Map();
 
 const JWT_SECRET = process.env.JWT_SECRET || require('crypto').randomBytes(64).toString('hex');
+
+// JWT Authentication Middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+  
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+};
 
 // Email configuration
 const transporter = nodemailer.createTransport({
@@ -163,22 +202,39 @@ setInterval(checkExpiringGifts, 60 * 60 * 1000); // Check every hour
 console.log('📧 Email notification system started - checking for expiring gifts every hour');
 
 // Routes
-app.post('/api/gifts', (req, res) => {
-  const { giftId, creator, amount, message, expiry, tokenAddress } = req.body;
-  
-  gifts.set(giftId, {
-    giftId,
-    creator,
-    amount,
-    message,
-    expiry,
-    tokenAddress,
-    claimed: false,
-    claimedBy: null,
-    createdAt: new Date().toISOString()
-  });
-  
-  res.json({ success: true, giftId });
+app.post('/api/gifts', async (req, res) => {
+  try {
+    const { giftId, creator, amount, message, expiry, tokenAddress, recipientEmail } = req.body;
+    
+    const giftData = {
+      gift_id: giftId,
+      creator,
+      amount,
+      message,
+      expiry,
+      token_address: tokenAddress,
+      recipient_email: recipientEmail,
+      claimed: false,
+      claimed_by: null,
+      created_at: new Date().toISOString()
+    };
+    
+    if (process.env.SUPABASE_URL) {
+      const { error } = await supabase
+        .from('gifts')
+        .insert([giftData]);
+      
+      if (error) throw error;
+    } else {
+      // Fallback to in-memory storage
+      gifts.set(giftId, giftData);
+    }
+    
+    res.json({ success: true, giftId });
+  } catch (error) {
+    console.error('Error creating gift:', error);
+    res.status(500).json({ error: 'Failed to create gift' });
+  }
 });
 
 app.get('/api/gifts/:giftId', (req, res) => {
@@ -201,25 +257,53 @@ app.get('/api/gifts/user/:userAddress', (req, res) => {
   res.json(userGifts);
 });
 
-app.post('/api/gifts/:giftId/claim', (req, res) => {
-  const { giftId } = req.params;
-  const { claimerAddress } = req.body;
-  
-  const gift = gifts.get(giftId);
-  if (!gift) {
-    return res.status(404).json({ error: 'Gift not found' });
+app.post('/api/gifts/:giftId/claim', async (req, res) => {
+  try {
+    const { giftId } = req.params;
+    const { claimerAddress } = req.body;
+    
+    if (process.env.SUPABASE_URL) {
+      const { data: gift, error: fetchError } = await supabase
+        .from('gifts')
+        .select('*')
+        .eq('gift_id', giftId)
+        .single();
+      
+      if (fetchError || !gift) {
+        return res.status(404).json({ error: 'Gift not found' });
+      }
+      
+      if (gift.claimed) {
+        return res.status(400).json({ error: 'Gift already claimed' });
+      }
+      
+      const { error: updateError } = await supabase
+        .from('gifts')
+        .update({
+          claimed: true,
+          claimed_by: claimerAddress,
+          claimed_at: new Date().toISOString()
+        })
+        .eq('gift_id', giftId);
+      
+      if (updateError) throw updateError;
+    } else {
+      // Fallback to in-memory storage
+      const gift = gifts.get(giftId);
+      if (!gift) return res.status(404).json({ error: 'Gift not found' });
+      if (gift.claimed) return res.status(400).json({ error: 'Gift already claimed' });
+      
+      gift.claimed = true;
+      gift.claimed_by = claimerAddress;
+      gift.claimed_at = new Date().toISOString();
+      gifts.set(giftId, gift);
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error claiming gift:', error);
+    res.status(500).json({ error: 'Failed to claim gift' });
   }
-  
-  if (gift.claimed) {
-    return res.status(400).json({ error: 'Gift already claimed' });
-  }
-  
-  gift.claimed = true;
-  gift.claimedBy = claimerAddress;
-  gift.claimedAt = new Date().toISOString();
-  
-  gifts.set(giftId, gift);
-  res.json({ success: true, gift });
 });
 
 // Send gift notification email
@@ -313,35 +397,101 @@ app.get('/api/received/:userAddress', (req, res) => {
 });
 
 // Get all transactions (sent + received) for a user
-app.get('/api/transactions/:userAddress', (req, res) => {
-  const { userAddress } = req.params;
-  console.log('Transaction history requested for:', userAddress);
-  console.log('Total gifts in system:', gifts.size);
-  
-  const sentGifts = Array.from(gifts.values())
-    .filter(gift => gift.creator.toLowerCase() === userAddress.toLowerCase())
-    .map(gift => ({ ...gift, type: 'sent' }));
+app.get('/api/transactions/:userAddress', async (req, res) => {
+  try {
+    const { userAddress } = req.params;
+    console.log('Transaction history requested for:', userAddress);
     
-  const receivedGifts = Array.from(gifts.values())
-    .filter(gift => gift.claimedBy && gift.claimedBy.toLowerCase() === userAddress.toLowerCase())
-    .map(gift => ({ ...gift, type: 'received' }));
-    
-  const allTransactions = [...sentGifts, ...receivedGifts]
-    .sort((a, b) => {
-      const dateA = new Date(a.type === 'sent' ? a.createdAt : a.claimedAt);
-      const dateB = new Date(b.type === 'sent' ? b.createdAt : b.claimedAt);
-      return dateB.getTime() - dateA.getTime();
-    });
-  
-  console.log('Sent gifts found:', sentGifts.length);
-  console.log('Received gifts found:', receivedGifts.length);
-  console.log('Total transactions returning:', allTransactions.length);
-    
-  res.json(allTransactions);
+    if (process.env.SUPABASE_URL) {
+      // Get sent gifts
+      const { data: sentGifts, error: sentError } = await supabase
+        .from('gifts')
+        .select('*')
+        .eq('creator', userAddress);
+      
+      if (sentError) throw sentError;
+      
+      // Get received gifts
+      const { data: receivedGifts, error: receivedError } = await supabase
+        .from('gifts')
+        .select('*')
+        .eq('claimed_by', userAddress)
+        .not('claimed_by', 'is', null);
+      
+      if (receivedError) throw receivedError;
+      
+      const sentWithType = (sentGifts || []).map(gift => ({
+        giftId: gift.gift_id,
+        creator: gift.creator,
+        amount: gift.amount,
+        message: gift.message,
+        expiry: gift.expiry,
+        claimed: gift.claimed,
+        claimedBy: gift.claimed_by,
+        createdAt: gift.created_at,
+        claimedAt: gift.claimed_at,
+        type: 'sent'
+      }));
+      
+      const receivedWithType = (receivedGifts || []).map(gift => ({
+        giftId: gift.gift_id,
+        creator: gift.creator,
+        amount: gift.amount,
+        message: gift.message,
+        expiry: gift.expiry,
+        claimed: gift.claimed,
+        claimedBy: gift.claimed_by,
+        createdAt: gift.created_at,
+        claimedAt: gift.claimed_at,
+        type: 'received'
+      }));
+      
+      const allTransactions = [...sentWithType, ...receivedWithType]
+        .sort((a, b) => {
+          const dateA = new Date(a.type === 'sent' ? a.createdAt : a.claimedAt);
+          const dateB = new Date(b.type === 'sent' ? b.createdAt : b.claimedAt);
+          return dateB.getTime() - dateA.getTime();
+        });
+      
+      console.log('Sent gifts found:', sentWithType.length);
+      console.log('Received gifts found:', receivedWithType.length);
+      
+      res.json(allTransactions);
+    } else {
+      // Fallback to in-memory storage
+      const sentGifts = Array.from(gifts.values())
+        .filter(gift => gift.creator.toLowerCase() === userAddress.toLowerCase())
+        .map(gift => ({ ...gift, type: 'sent' }));
+        
+      const receivedGifts = Array.from(gifts.values())
+        .filter(gift => gift.claimed_by && gift.claimed_by.toLowerCase() === userAddress.toLowerCase())
+        .map(gift => ({ ...gift, type: 'received' }));
+        
+      const allTransactions = [...sentGifts, ...receivedGifts]
+        .sort((a, b) => {
+          const dateA = new Date(a.type === 'sent' ? a.created_at : a.claimed_at);
+          const dateB = new Date(b.type === 'sent' ? b.created_at : b.claimed_at);
+          return dateB.getTime() - dateA.getTime();
+        });
+      
+      res.json(allTransactions);
+    }
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    res.status(500).json({ error: 'Failed to fetch transaction history' });
+  }
 });
 
 // User Authentication Routes
-app.post('/api/auth/signup', async (req, res) => {
+app.post('/api/auth/signup', authLimiter, [
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 8 }),
+  body('fullName').trim().isLength({ min: 2, max: 50 })
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   try {
     const { fullName, email, password, confirmPassword } = req.body;
     
@@ -354,40 +504,82 @@ app.post('/api/auth/signup', async (req, res) => {
       return res.status(400).json({ error: 'Passwords do not match' });
     }
     
-    if (users.has(email)) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
-    
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Create user
-    const user = {
-      id: Date.now().toString(),
-      fullName,
-      email,
-      password: hashedPassword,
-      createdAt: new Date().toISOString()
-    };
-    
-    users.set(email, user);
-    
-    // Generate JWT
-    const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-    
-    res.status(201).json({
-      message: 'Account created successfully',
-      token,
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email
+    if (process.env.SUPABASE_URL) {
+      // Check if user exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('email')
+        .eq('email', email)
+        .single();
+      
+      if (existingUser) {
+        return res.status(400).json({ error: 'User already exists' });
       }
-    });
+      
+      // Create user
+      const { data: newUser, error } = await supabase
+        .from('users')
+        .insert([{
+          full_name: fullName,
+          email,
+          password_hash: hashedPassword
+        }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Generate JWT
+      const token = jwt.sign(
+        { userId: newUser.id, email: newUser.email },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
+      res.status(201).json({
+        message: 'Account created successfully',
+        token,
+        user: {
+          id: newUser.id,
+          fullName: newUser.full_name,
+          email: newUser.email
+        }
+      });
+    } else {
+      // Fallback to in-memory storage
+      if (users.has(email)) {
+        return res.status(400).json({ error: 'User already exists' });
+      }
+      
+      const user = {
+        id: Date.now().toString(),
+        fullName,
+        email,
+        password: hashedPassword,
+        createdAt: new Date().toISOString()
+      };
+      
+      users.set(email, user);
+      
+      const token = jwt.sign(
+        { userId: user.id, email: user.email },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
+      res.status(201).json({
+        message: 'Account created successfully',
+        token,
+        user: {
+          id: user.id,
+          fullName: user.fullName,
+          email: user.email
+        }
+      });
+    }
     
   } catch (error) {
     console.error('Signup error:', error);
@@ -399,40 +591,71 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     console.log('Login attempt for:', email);
-    console.log('Total users in system:', users.size);
     
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
     
-    const user = users.get(email);
-    console.log('User found:', !!user);
-    if (!user) {
-      console.log('Available users:', Array.from(users.keys()));
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    
-    // Generate JWT
-    const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-    
-    res.json({
-      message: 'Login successful',
-      token,
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email
+    if (process.env.SUPABASE_URL) {
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+      
+      if (error || !user) {
+        return res.status(401).json({ error: 'Invalid credentials' });
       }
-    });
+      
+      const isValidPassword = await bcrypt.compare(password, user.password_hash);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      
+      // Generate JWT
+      const token = jwt.sign(
+        { userId: user.id, email: user.email },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
+      res.json({
+        message: 'Login successful',
+        token,
+        user: {
+          id: user.id,
+          fullName: user.full_name,
+          email: user.email
+        }
+      });
+    } else {
+      // Fallback to in-memory storage
+      const user = users.get(email);
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      
+      const token = jwt.sign(
+        { userId: user.id, email: user.email },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
+      res.json({
+        message: 'Login successful',
+        token,
+        user: {
+          id: user.id,
+          fullName: user.fullName,
+          email: user.email
+        }
+      });
+    }
     
   } catch (error) {
     console.error('Login error:', error);

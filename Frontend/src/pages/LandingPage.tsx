@@ -15,21 +15,20 @@ const LandingPage = () => {
           <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg blur opacity-30 group-hover:opacity-50 transition duration-1000"></div>
           <div className="relative bg-black/30 backdrop-blur-sm p-8 sm:p-12 rounded-2xl shadow-2xl border border-white/10">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 text-white tracking-tight">
-              Empower Change with
+              Share Joy with
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-yellow-400 ml-2">
                 GiftChain
               </span>
             </h1>
             <p className="text-lg sm:text-xl text-white/80 mb-10 max-w-2xl mx-auto">
-              Experience true transparency in charitable giving. Every donation
-              is securely tracked on the blockchain, ensuring your generosity
-              reaches those who need it most.
+              Send heartfelt crypto gifts to the people you care about.
+              Personal, secure, and meaningful - because every gift tells a story.
             </p>
             <button onClick={() => navigate('/signin')} className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-pink-500 to-purple-600 rounded-full overflow-hidden shadow-lg transition-all duration-300 hover:shadow-pink-500/30 hover:scale-105">
               <span className="absolute inset-0 w-full h-full bg-gradient-to-br from-pink-500 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-out"></span>
               <span className="relative flex items-center">
-                <span className="mr-2 text-2xl animate-pulse">❤️</span>
-                Get Started
+                <span className="mr-2 text-2xl animate-pulse">🎁</span>
+                Start Gifting
               </span>
             </button>
           </div>
